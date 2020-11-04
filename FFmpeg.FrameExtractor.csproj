@@ -2,8 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <RootNamespace>FrameExtractor</RootNamespace>
     <RepositoryUrl>https://github.com/redbaty/FFmpeg.FrameExtractor</RepositoryUrl>
-    <Version>1.0.0</Version>
+    <Authors>Marcos Cordeiro</Authors>
+    <Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>

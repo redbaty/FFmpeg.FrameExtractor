@@ -2,9 +2,9 @@
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using FFmpeg.FrameExtractor.Decoders;
+using FrameExtractor.Decoders;
 
-namespace FFmpeg.FrameExtractor
+namespace FrameExtractor
 {
     internal class FrameStream : Stream
     {

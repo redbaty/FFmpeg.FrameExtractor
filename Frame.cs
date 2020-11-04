@@ -1,4 +1,4 @@
-﻿namespace FFmpeg.FrameExtractor
+﻿namespace FrameExtractor
 {
     public class Frame
     {

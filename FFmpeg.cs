@@ -7,9 +7,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
 using CliWrap;
-using FFmpeg.FrameExtractor.Decoders;
+using FrameExtractor.Decoders;
 
-namespace FFmpeg.FrameExtractor
+namespace FrameExtractor
 {
     public static class FFmpeg
     {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-namespace FFmpeg.FrameExtractor.Decoders
+namespace FrameExtractor.Decoders
 {
     internal class JpegBufferDecoder : IFrameBufferDecoder
     {

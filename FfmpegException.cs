@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace FFmpeg.FrameExtractor
+namespace FrameExtractor
 {
     public class FfmpegException : Exception
     {

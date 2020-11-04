@@ -1,7 +1,7 @@
 ﻿using System.Threading.Channels;
 using System.Threading.Tasks;
 
-namespace FFmpeg.FrameExtractor.Decoders
+namespace FrameExtractor.Decoders
 {
     internal interface IFrameBufferDecoder
     {
