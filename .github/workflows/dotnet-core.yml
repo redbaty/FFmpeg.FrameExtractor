@@ -17,7 +17,9 @@ jobs:
         with:
           dotnet-version: 3.1.301
       - name: Setup Github nuget
-        run: dotnet nuget add source https://nuget.pkg.github.com/redbaty/index.json -n github -u redbaty -p ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text
+        run: dotnet nuget add source https://nuget.pkg.github.com/redbaty/index.json -n github -u redbaty -p GH_TOKEN
+        env:
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
       - name: Nuget pack
         run:  dotnet pack -c Release -o out
       - name: Push nuget
