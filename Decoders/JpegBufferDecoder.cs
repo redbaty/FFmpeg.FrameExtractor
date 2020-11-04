@@ -15,7 +15,7 @@ namespace FrameExtractor.Decoders
 
         private int CurrentFrame { get; set; }
         private List<byte> LastBuffer { get; } = new List<byte>();
-        private static byte[] StartSignature { get; } = {255, 216, 255, 224};
+        private static byte[] StartSignature { get; } = {255, 216, 255};
         private static byte[] EndSignature { get; } = {255, 217};
 
         public ChannelWriter<Frame> ChannelWriter { get; }
