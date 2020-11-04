@@ -21,6 +21,6 @@ jobs:
         env:
           GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
       - name: Nuget pack
-        run:  dotnet pack -c Release -o out
+        run:  dotnet pack -c Release -o out -p:PackageVersion=1.0.${{ github.run_number }}
       - name: Push nuget
-        run: dotnet nuget push .\out\*.nupkg --skip-duplicate --no-symbols true
+        run: dotnet nuget push .\out\*.nupkg --skip-duplicate --no-symbols true --source "github"
