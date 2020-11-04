@@ -2,9 +2,9 @@
 
 namespace FrameExtractor
 {
-    public class FfmpegException : Exception
+    public class FFmpegException : Exception
     {
-        public FfmpegException(string message) : base(message)
+        public FFmpegException(string message) : base(message)
         {
         }
     }
