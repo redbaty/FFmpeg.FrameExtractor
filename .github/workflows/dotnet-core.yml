@@ -17,8 +17,8 @@ jobs:
         with:
           dotnet-version: 3.1.401
 
-      - name: Nuget pack
-        run:  dotnet pack -c Release -o out -p:PackageVersion=1.0.${{ github.run_number }}
-
-      - name: Push nuget
-        run: dotnet nuget push ./out/*.nupkg --skip-duplicate --no-symbols true --api-key ${{ github.token }} --source https://nuget.pkg.github.com/redbaty
+      - name: Publish NuGet
+        uses: brandedoutcast/publish-nuget@v2.5.5
+        with:
+          PROJECT_FILE_PATH: FFmpeg.FrameExtractor.csproj
+          NUGET_KEY: ${{secrets.NUGETKEY}}
