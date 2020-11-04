@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RepositoryUrl>https://github.com/redbaty/FFmpeg.FrameExtractor</RepositoryUrl>
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
