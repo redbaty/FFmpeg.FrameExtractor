@@ -10,58 +10,84 @@ using System.Threading.Tasks;
 using CliWrap;
 using CliWrap.Buffered;
 using FrameExtractor.Decoders;
+using FrameExtractor.Exceptions;
+using FrameExtractor.Extensions;
 
 namespace FrameExtractor
 {
     public static class FFmpeg
     {
-        public static async Task<double> GetFps(string filePath)
+        /// <summary>
+        /// Returns the 'FPS' returned from FFprobe.
+        /// </summary>
+        /// <param name="filePath">The full file path.</param>
+        /// <param name="options"></param>
+        /// <returns></returns>
+        /// <exception cref="FFprobeException">This happens when FFprobe returns a non 0 exit code.</exception>
+        public static async Task<double> GetFps(string filePath, FFmpegOptions options = null)
         {
-            var ffprobeResult = await Cli.Wrap("ffprobe")
+            options ??= FFmpegOptions.Default;
+
+            var ffprobeResult = await Cli.Wrap(options.FFprobeBinaryPath)
                 .WithArguments($"\"{filePath}\"")
                 .WithValidation(CommandResultValidation.None)
                 .ExecuteBufferedAsync();
 
-            if (ffprobeResult.ExitCode != 0)
-            {
-                throw new FFprobeException(ffprobeResult.StandardError);
-            }
+            if (ffprobeResult.ExitCode != 0) throw new FFprobeException(ffprobeResult.StandardError);
 
             return GetFpsFromOutput(string.IsNullOrEmpty(ffprobeResult.StandardOutput)
                 ? ffprobeResult.StandardError
                 : ffprobeResult.StandardOutput);
         }
 
-        public static async IAsyncEnumerable<Frame> GetFrames(string filePath,
-            FrameExtractionOptions frameExtractionOptions,
-            TimeSpan? timeLimit,
-            Action<double> onFpsGathered = null
-        )
+        /// <summary>
+        /// Gets frames asynchronously from a video file.
+        /// </summary>
+        /// <param name="filePath">The full file path.</param>
+        /// <param name="options"></param>
+        /// <param name="onFpsGathered">After the video parsing is done, this will be called with the fps value extracted from ffmpeg 'stderr' output.</param>
+        /// <returns></returns>
+        /// <exception cref="FFmpegException">This happens when FFmpeg returns a non 0 exit code.</exception>
+        public static async IAsyncEnumerable<Frame> GetFrames(string filePath, FrameExtractionOptions options = null, Action<double> onFpsGathered = null)
         {
+            await using var standardInput = File.OpenRead(filePath);
+            await foreach (var frame in GetFrames(standardInput, options, onFpsGathered)) yield return frame;
+        }
+
+        /// <summary>
+        /// Gets frames asynchronously from a video stream.
+        /// </summary>
+        /// <param name="standardInput">The video stream.</param>
+        /// <param name="options"></param>
+        /// <param name="onFpsGathered">After the video parsing is done, this will be called with the fps value extracted from ffmpeg 'stderr' output.</param>
+        /// <returns></returns>
+        /// <exception cref="FFmpegException">This happens when FFmpeg returns a non 0 exit code.</exception>
+        public static async IAsyncEnumerable<Frame> GetFrames(Stream standardInput, FrameExtractionOptions options = null, Action<double> onFpsGathered = null)
+        {
+            options ??= FrameExtractionOptions.Default;
+
             var argumentsList = new List<string>();
 
-            if (timeLimit.HasValue) argumentsList.Add($"-t {timeLimit.Value:hh\\:mm\\:ss\\.fff}");
+            if (options.TimeLimit.HasValue) argumentsList.Add($"-t {options.TimeLimit.Value:hh\\:mm\\:ss\\.fff}");
 
-            if (frameExtractionOptions.EnableHardwareAcceleration) argumentsList.Add("-hwaccel auto");
+            if (options.EnableHardwareAcceleration) argumentsList.Add("-hwaccel auto");
 
             argumentsList.Add("-i - -an");
 
-            if (frameExtractionOptions.FrameSize.Valid)
-            {
+            if (options.FrameSize != null && options.FrameSize.Valid)
                 argumentsList.Add(
-                    $"-s {frameExtractionOptions.FrameSize.Width}x{frameExtractionOptions.FrameSize.Height}");
-            }
+                    $"-s {options.FrameSize.Width}x{options.FrameSize.Height}");
 
             argumentsList.Add("-f image2pipe");
-            argumentsList.Add("pipe:.jpg");
+            argumentsList.Add($"pipe:{options.FrameFormat.GetPipeFormat()}");
 
             var arguments = argumentsList.Aggregate((x, y) => $"{x} {y}");
             var channel = Channel.CreateUnbounded<Frame>();
-            await using var standardInput = File.OpenRead(filePath);
-            await using var standardOutput = new FrameStream(new JpegBufferDecoder(channel));
+            await using var standardOutput =
+                new DecoderStreamWrapper(options.FrameFormat.GetDecoder(channel.Writer));
             var standardErrorOutput = new StringBuilder();
 
-            var taskResult = Cli.Wrap("ffmpeg")
+            var taskResult = Cli.Wrap(options.FFmpegBinaryPath)
                 .WithStandardInputPipe(PipeSource.FromStream(standardInput))
                 .WithStandardOutputPipe(PipeTarget.ToStream(standardOutput))
                 .WithStandardErrorPipe(PipeTarget.ToStringBuilder(standardErrorOutput))
@@ -74,10 +100,7 @@ namespace FrameExtractor
                     return t.Result;
                 });
 
-            await foreach (var frame in channel.Reader.ReadAllAsync())
-            {
-                yield return frame;
-            }
+            await foreach (var frame in channel.Reader.ReadAllAsync()) yield return frame;
 
             var result = await taskResult;
             if (result.ExitCode != 0) throw new FFmpegException(standardErrorOutput.ToString());

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace FrameExtractor
+namespace FrameExtractor.Exceptions
 {
     public class FFprobeException : Exception
     {
