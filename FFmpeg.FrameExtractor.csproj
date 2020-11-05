@@ -5,7 +5,7 @@
     <RootNamespace>FrameExtractor</RootNamespace>
     <RepositoryUrl>https://github.com/redbaty/FFmpeg.FrameExtractor</RepositoryUrl>
     <Authors>Marcos Cordeiro</Authors>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
   </PropertyGroup>
 
   <ItemGroup>
