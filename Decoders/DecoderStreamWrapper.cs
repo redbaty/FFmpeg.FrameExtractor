@@ -2,13 +2,12 @@
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using FrameExtractor.Decoders;
 
-namespace FrameExtractor
+namespace FrameExtractor.Decoders
 {
-    internal class FrameStream : Stream
+    internal class DecoderStreamWrapper : Stream
     {
-        public FrameStream(IFrameBufferDecoder decoder)
+        public DecoderStreamWrapper(IFrameBufferDecoder decoder)
         {
             Decoder = decoder;
         }
