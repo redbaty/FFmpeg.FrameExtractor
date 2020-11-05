@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -26,10 +27,12 @@ namespace FrameExtractor.Decoders
 
         public virtual async Task WriteAsync(byte[] buffer)
         {
+#if DEBUG
+            var packageReadingTime = Stopwatch.StartNew();
+#endif
             var currentStartSignaturePosition = 0;
             var currentEndSignaturePosition = 0;
-            var imageCreated = false;
-
+            var writingTasks = new List<Task>();
 
             for (var index = 0; index < buffer.Length; index++)
             {
@@ -64,8 +67,8 @@ namespace FrameExtractor.Decoders
                         if (PositionStart.HasValue)
                         {
                             var bytes = buffer[PositionStart.Value..PositionEnd.Value];
-                            await CreateImage(bytes);
-                            imageCreated = true;
+                            writingTasks.Add(CreateImage(bytes, CurrentFrame));
+                            CurrentFrame++;
                             PositionStart = null;
                         }
                         else
@@ -73,8 +76,8 @@ namespace FrameExtractor.Decoders
                             if (LastBuffer.Count > 0)
                             {
                                 var array = LastBuffer.Concat(buffer[..PositionEnd.Value]).ToArray();
-                                await CreateImage(array);
-                                imageCreated = true;
+                                writingTasks.Add(CreateImage(array, CurrentFrame));
+                                CurrentFrame++;
                                 LastBuffer.Clear();
                             }
                         }
@@ -96,43 +99,27 @@ namespace FrameExtractor.Decoders
             if (PositionEnd.HasValue)
             {
                 var delta = buffer.Length - PositionEnd.Value;
-
                 if (delta > 1) LastBuffer.AddRange(buffer[PositionEnd.Value..]);
-            } else if (PositionEnd == null && !imageCreated)
+            }
+            else
             {
                 LastBuffer.AddRange(buffer);
             }
 
             PositionStart = null;
             PositionEnd = null;
+            await Task.WhenAll(writingTasks);
+
+#if DEBUG
+            packageReadingTime.Stop();
+            if (packageReadingTime.ElapsedMilliseconds > 0)
+                Debug.WriteLine($"Package reading took {packageReadingTime.ElapsedMilliseconds}ms.");
+#endif
         }
 
-        private async Task CreateImage(byte[] data)
+        private async Task CreateImage(byte[] data, int frame)
         {
-#if DEBUG
-            var malformed = false;
-
-            for (var index = 0; index < StartSignature.Length; index++)
-                if (StartSignature[index] != data[index])
-                    malformed = true;
-
-            var dataIndex = 0;
-            for (var index = EndSignature.Length - 1; index >= 0; index--)
-            {
-                if (EndSignature[index] != data[data.Length - 1 - dataIndex]) malformed = true;
-
-                dataIndex++;
-            }
-
-            if (malformed)
-            {
-                Console.WriteLine("Malformed frame.");
-                //throw new InvalidOperationException("Malformed frame.");
-            }
-#endif
-
-            await ChannelWriter.WriteAsync(new Frame(data, CurrentFrame));
-            CurrentFrame++;
+            await ChannelWriter.WriteAsync(new Frame(data, frame));
         }
     }
 }
