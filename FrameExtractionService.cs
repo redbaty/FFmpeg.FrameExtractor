@@ -12,28 +12,49 @@ using CliWrap.Buffered;
 using FrameExtractor.Decoders;
 using FrameExtractor.Exceptions;
 using FrameExtractor.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace FrameExtractor
 {
-    public static class FFmpeg
+    public class FrameExtractionService
     {
+        public FrameExtractionService(ILogger<FrameExtractionService> logger)
+        {
+            Logger = logger;
+        }
+        
+        private ILogger<FrameExtractionService> Logger { get; }
+
         /// <summary>
-        /// Returns the 'FPS' returned from FFprobe.
+        ///     Returns the 'FPS' returned from FFprobe.
         /// </summary>
         /// <param name="filePath">The full file path.</param>
         /// <param name="options"></param>
         /// <returns></returns>
         /// <exception cref="FFprobeException">This happens when FFprobe returns a non 0 exit code.</exception>
-        public static async Task<double> GetFps(string filePath, FFmpegOptions options = null)
+        public async Task<double> GetFps(string filePath, FFmpegOptions options = null)
         {
             options ??= FFmpegOptions.Default;
+
+            Logger?.LogDebug("Getting fps from FFprobe. {@Arguments}", new
+            {
+                FFprobePath = options.FFmpegBinaryPath,
+                File = filePath
+            });
 
             var ffprobeResult = await Cli.Wrap(options.FFprobeBinaryPath)
                 .WithArguments($"\"{filePath}\"")
                 .WithValidation(CommandResultValidation.None)
                 .ExecuteBufferedAsync();
 
-            if (ffprobeResult.ExitCode != 0) throw new FFprobeException(ffprobeResult.StandardError);
+            if (ffprobeResult.ExitCode != 0)
+            {
+                var ffprobeException = new FFprobeException(ffprobeResult.StandardError);
+                Logger?.LogError(ffprobeException, "Error while running FFprobe.");
+                throw ffprobeException;
+            }
+
+            Logger?.LogInformation("FFprobe ran successfully on '{@file}'", filePath);
 
             return GetFpsFromOutput(string.IsNullOrEmpty(ffprobeResult.StandardOutput)
                 ? ffprobeResult.StandardError
@@ -41,28 +62,34 @@ namespace FrameExtractor
         }
 
         /// <summary>
-        /// Gets frames asynchronously from a video file.
+        ///     Gets frames asynchronously from a video file.
         /// </summary>
         /// <param name="filePath">The full file path.</param>
         /// <param name="options"></param>
-        /// <param name="onFpsGathered">After the video parsing is done, this will be called with the fps value extracted from ffmpeg 'stderr' output.</param>
+        /// <param name="onFpsGathered">
+        ///     After the video parsing is done, this will be called with the fps value extracted from
+        ///     ffmpeg 'stderr' output.
+        /// </param>
         /// <returns></returns>
         /// <exception cref="FFmpegException">This happens when FFmpeg returns a non 0 exit code.</exception>
-        public static async IAsyncEnumerable<Frame> GetFrames(string filePath, FrameExtractionOptions options = null, Action<double> onFpsGathered = null)
+        public async IAsyncEnumerable<Frame> GetFrames(string filePath, FrameExtractionOptions options = null, Action<double> onFpsGathered = null)
         {
             await using var standardInput = File.OpenRead(filePath);
             await foreach (var frame in GetFrames(standardInput, options, onFpsGathered)) yield return frame;
         }
 
         /// <summary>
-        /// Gets frames asynchronously from a video stream.
+        ///     Gets frames asynchronously from a video stream.
         /// </summary>
         /// <param name="standardInput">The video stream.</param>
         /// <param name="options"></param>
-        /// <param name="onFpsGathered">After the video parsing is done, this will be called with the fps value extracted from ffmpeg 'stderr' output.</param>
+        /// <param name="onFpsGathered">
+        ///     After the video parsing is done, this will be called with the fps value extracted from
+        ///     ffmpeg 'stderr' output.
+        /// </param>
         /// <returns></returns>
         /// <exception cref="FFmpegException">This happens when FFmpeg returns a non 0 exit code.</exception>
-        public static async IAsyncEnumerable<Frame> GetFrames(Stream standardInput, FrameExtractionOptions options = null, Action<double> onFpsGathered = null)
+        public async IAsyncEnumerable<Frame> GetFrames(Stream standardInput, FrameExtractionOptions options = null, Action<double> onFpsGathered = null)
         {
             options ??= FrameExtractionOptions.Default;
 
@@ -87,6 +114,12 @@ namespace FrameExtractor
                 new DecoderStreamWrapper(options.FrameFormat.GetDecoder(channel.Writer));
             var standardErrorOutput = new StringBuilder();
 
+            Logger?.LogDebug("Starting FFmpeg. {@arguments}", new
+            {
+                Arguments = arguments,
+                FFmpegPath = options.FFmpegBinaryPath
+            });
+
             var taskResult = Cli.Wrap(options.FFmpegBinaryPath)
                 .WithStandardInputPipe(PipeSource.FromStream(standardInput))
                 .WithStandardOutputPipe(PipeTarget.ToStream(standardOutput))
@@ -100,10 +133,19 @@ namespace FrameExtractor
                     return t.Result;
                 });
 
-            await foreach (var frame in channel.Reader.ReadAllAsync()) yield return frame;
+            await foreach (var frame in channel.Reader.ReadAllAsync())
+            {
+                Logger?.LogDebug("Frame {@frame} delivered.", frame.Position);
+                yield return frame;
+            }
 
             var result = await taskResult;
-            if (result.ExitCode != 0) throw new FFmpegException(standardErrorOutput.ToString());
+            if (result.ExitCode != 0)
+            {
+                var ffmpegException = new FFmpegException(standardErrorOutput.ToString());
+                Logger?.LogError(ffmpegException, "Error while running FFmpeg.");
+                throw ffmpegException;
+            }
 
             if (onFpsGathered != null)
             {
