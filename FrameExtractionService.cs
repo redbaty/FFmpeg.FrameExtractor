@@ -18,6 +18,8 @@ namespace FrameExtractor
 {
     public class FrameExtractionService
     {
+        public static FrameExtractionService Default { get; } = new FrameExtractionService(null);
+        
         public FrameExtractionService(ILogger<FrameExtractionService> logger)
         {
             Logger = logger;
