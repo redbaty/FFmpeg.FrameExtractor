@@ -116,7 +116,7 @@ namespace FrameExtractor
                 new DecoderStreamWrapper(options.FrameFormat.GetDecoder(channel.Writer));
             var standardErrorOutput = new StringBuilder();
 
-            Logger?.LogDebug("Starting FFmpeg. {@arguments}", new
+            Logger?.LogInformation("Starting FFmpeg. {@arguments}", new
             {
                 Arguments = arguments,
                 FFmpegPath = options.FFmpegBinaryPath
