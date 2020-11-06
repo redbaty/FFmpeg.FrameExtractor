@@ -106,6 +106,9 @@ namespace FrameExtractor
             if (options.FrameSize != null && options.FrameSize.Valid)
                 argumentsList.Add(
                     $"-s {options.FrameSize.Width}x{options.FrameSize.Height}");
+            
+            if(options.Fps.HasValue)
+                argumentsList.Add($"-r {options.Fps.Value}");
 
             argumentsList.Add("-f image2pipe");
             argumentsList.Add($"pipe:{options.FrameFormat.GetPipeFormat()}");

@@ -13,5 +13,7 @@ namespace FrameExtractor
         public FrameSize FrameSize { get; set; }
 
         public TimeSpan? TimeLimit { get; set; }
+        
+        public int? Fps { get; set; }
     }
 }
