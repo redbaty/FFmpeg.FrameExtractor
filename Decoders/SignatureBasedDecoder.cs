@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Channels;
@@ -15,8 +14,7 @@ namespace FrameExtractor.Decoders
             EndSignature = endSignature;
             ChannelWriter = channelWriter;
         }
-
-        private int CurrentFrame { get; set; }
+        
         private List<byte> LastBuffer { get; } = new List<byte>();
         private byte[] StartSignature { get; }
         private byte[] EndSignature { get; }
@@ -67,8 +65,7 @@ namespace FrameExtractor.Decoders
                         if (PositionStart.HasValue)
                         {
                             var bytes = buffer[PositionStart.Value..PositionEnd.Value];
-                            writingTasks.Add(CreateImage(bytes, CurrentFrame));
-                            CurrentFrame++;
+                            writingTasks.Add(CreateImage(bytes));
                             PositionStart = null;
                         }
                         else
@@ -76,8 +73,7 @@ namespace FrameExtractor.Decoders
                             if (LastBuffer.Count > 0)
                             {
                                 var array = LastBuffer.Concat(buffer[..PositionEnd.Value]).ToArray();
-                                writingTasks.Add(CreateImage(array, CurrentFrame));
-                                CurrentFrame++;
+                                writingTasks.Add(CreateImage(array));
                                 LastBuffer.Clear();
                             }
                         }
@@ -117,9 +113,9 @@ namespace FrameExtractor.Decoders
 #endif
         }
 
-        private async Task CreateImage(byte[] data, int frame)
+        private async Task CreateImage(byte[] data)
         {
-            await ChannelWriter.WriteAsync(new Frame(data, frame));
+            await ChannelWriter.WriteAsync(new Frame(data));
         }
     }
 }

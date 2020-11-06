@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -135,10 +135,13 @@ namespace FrameExtractor
                     return t.Result;
                 });
 
+            var currentFrame = 1;
             await foreach (var frame in channel.Reader.ReadAllAsync())
             {
+                frame.Position = currentFrame;
                 Logger?.LogDebug("Frame {@frame} delivered.", frame.Position);
                 yield return frame;
+                currentFrame++;
             }
 
             var result = await taskResult;
