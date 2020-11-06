@@ -155,6 +155,8 @@ namespace FrameExtractor
                 Logger?.LogError(ffmpegException, "Error while running FFmpeg.");
                 throw ffmpegException;
             }
+            
+            Logger?.LogInformation("FFmpeg ran successfully. {@frameCount} frames delivered.", currentFrame);
 
             if (onFpsGathered != null)
             {
