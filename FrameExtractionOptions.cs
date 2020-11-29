@@ -4,7 +4,7 @@ namespace FrameExtractor
 {
     public class FrameExtractionOptions : FFmpegOptions
     {
-        internal new static FrameExtractionOptions Default { get; } = new FrameExtractionOptions();
+        internal new static FrameExtractionOptions Default { get; } = new();
 
         public bool EnableHardwareAcceleration { get; set; }
 

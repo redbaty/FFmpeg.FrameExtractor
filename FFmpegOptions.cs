@@ -5,7 +5,7 @@ namespace FrameExtractor
 {
     public class FFmpegOptions
     {
-        internal static FFmpegOptions Default { get; } = new FFmpegOptions();
+        internal static FFmpegOptions Default { get; } = new();
 
         private string _ffmpegBinaryPath;
         private string _ffprobeBinaryPath;
@@ -29,13 +29,11 @@ namespace FrameExtractor
                 fileName += ".exe";
             }
             
-            if (EnvironmentHelper.ExistsOnPath(fileName))
-            {
-                return EnvironmentHelper.GetFullPath(fileName);
-            }
-
-            throw new FileNotFoundException(
-                $"Could not find {fileName} in PATH. Make sure to set it manually or to include it on your system PATH.");
+            var fullPath = EnvironmentHelper.GetFullPath(fileName);
+            return !string.IsNullOrEmpty(fullPath)
+                ? fullPath
+                : throw new FileNotFoundException(
+                    $"Could not find {fileName} in PATH. Make sure to set it manually or to include it on your system PATH.");
         }
     }
 }

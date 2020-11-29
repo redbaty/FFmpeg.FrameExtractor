@@ -2,6 +2,7 @@
 
 namespace FrameExtractor.Annotations
 {
+    [AttributeUsage(AttributeTargets.Field)]
     internal class PipeFormatAttribute : Attribute
     {
         public PipeFormatAttribute(string format)

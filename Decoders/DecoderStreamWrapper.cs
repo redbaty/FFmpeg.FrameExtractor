@@ -42,11 +42,11 @@ namespace FrameExtractor.Decoders
 
         public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            return Decoder.WriteAsync(buffer[..count]);
+            return Decoder.WriteAsync(buffer[..count], cancellationToken);
         }
 
         public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer,
-            CancellationToken cancellationToken = new CancellationToken())
+            CancellationToken cancellationToken = new())
         {
             throw new NotSupportedException();
         }

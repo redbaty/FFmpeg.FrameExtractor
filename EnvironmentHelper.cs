@@ -4,13 +4,8 @@ using System.Linq;
 
 namespace FrameExtractor
 {
-    internal class EnvironmentHelper
+    internal static class EnvironmentHelper
     {
-        public static bool ExistsOnPath(string fileName)
-        {
-            return GetFullPath(fileName) != null;
-        }
-
         public static string GetFullPath(string fileName)
         {
             if (File.Exists(fileName))

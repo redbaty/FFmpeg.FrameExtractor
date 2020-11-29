@@ -1,4 +1,5 @@
-﻿using System.Threading.Channels;
+﻿using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace FrameExtractor.Decoders
@@ -7,6 +8,6 @@ namespace FrameExtractor.Decoders
     {
         ChannelWriter<Frame> ChannelWriter { get; }
         
-        Task WriteAsync(byte[] buffer);
+        Task WriteAsync(byte[] buffer, CancellationToken cancellationToken);
     }
 }

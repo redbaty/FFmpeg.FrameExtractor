@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
@@ -15,7 +16,7 @@ namespace FrameExtractor.Decoders
             ChannelWriter = channelWriter;
         }
         
-        private List<byte> LastBuffer { get; } = new List<byte>();
+        private List<byte> LastBuffer { get; } = new();
         private byte[] StartSignature { get; }
         private byte[] EndSignature { get; }
         private bool FrameStarted { get; set; }
@@ -23,14 +24,13 @@ namespace FrameExtractor.Decoders
         private int? PositionEnd { get; set; }
         public ChannelWriter<Frame> ChannelWriter { get; }
 
-        public virtual async Task WriteAsync(byte[] buffer)
+        public virtual async Task WriteAsync(byte[] buffer, CancellationToken cancellationToken)
         {
 #if DEBUG
             var packageReadingTime = Stopwatch.StartNew();
 #endif
             var currentStartSignaturePosition = 0;
             var currentEndSignaturePosition = 0;
-            var writingTasks = new List<Task>();
 
             for (var index = 0; index < buffer.Length; index++)
             {
@@ -65,7 +65,7 @@ namespace FrameExtractor.Decoders
                         if (PositionStart.HasValue)
                         {
                             var bytes = buffer[PositionStart.Value..PositionEnd.Value];
-                            writingTasks.Add(CreateImage(bytes));
+                            await CreateImage(bytes, cancellationToken);
                             PositionStart = null;
                         }
                         else
@@ -73,7 +73,7 @@ namespace FrameExtractor.Decoders
                             if (LastBuffer.Count > 0)
                             {
                                 var array = LastBuffer.Concat(buffer[..PositionEnd.Value]).ToArray();
-                                writingTasks.Add(CreateImage(array));
+                                await CreateImage(array, cancellationToken);
                                 LastBuffer.Clear();
                             }
                         }
@@ -104,7 +104,6 @@ namespace FrameExtractor.Decoders
 
             PositionStart = null;
             PositionEnd = null;
-            await Task.WhenAll(writingTasks);
 
 #if DEBUG
             packageReadingTime.Stop();
@@ -113,9 +112,6 @@ namespace FrameExtractor.Decoders
 #endif
         }
 
-        private async Task CreateImage(byte[] data)
-        {
-            await ChannelWriter.WriteAsync(new Frame(data));
-        }
+        private Task CreateImage(byte[] data, CancellationToken cancellationToken) => ChannelWriter.WriteAsync(new Frame(data), cancellationToken).AsTask();
     }
 }
