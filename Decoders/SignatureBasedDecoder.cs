@@ -9,7 +9,7 @@ namespace FrameExtractor.Decoders
 {
     internal class SignatureBasedDecoder : IFrameBufferDecoder
     {
-        protected SignatureBasedDecoder(byte[] startSignature, byte[] endSignature, ChannelWriter<Frame> channelWriter)
+        protected SignatureBasedDecoder(byte[] startSignature, byte[] endSignature, ChannelWriter<FrameData> channelWriter)
         {
             StartSignature = startSignature;
             EndSignature = endSignature;
@@ -22,7 +22,7 @@ namespace FrameExtractor.Decoders
         private bool FrameStarted { get; set; }
         private int? PositionStart { get; set; }
         private int? PositionEnd { get; set; }
-        public ChannelWriter<Frame> ChannelWriter { get; }
+        public ChannelWriter<FrameData> ChannelWriter { get; }
 
         public virtual async Task WriteAsync(byte[] buffer, CancellationToken cancellationToken)
         {
@@ -65,7 +65,7 @@ namespace FrameExtractor.Decoders
                         if (PositionStart.HasValue)
                         {
                             var bytes = buffer[PositionStart.Value..PositionEnd.Value];
-                            await CreateImage(bytes, cancellationToken);
+                            await WriteImageToChannel(bytes, cancellationToken);
                             PositionStart = null;
                         }
                         else
@@ -73,7 +73,7 @@ namespace FrameExtractor.Decoders
                             if (LastBuffer.Count > 0)
                             {
                                 var array = LastBuffer.Concat(buffer[..PositionEnd.Value]).ToArray();
-                                await CreateImage(array, cancellationToken);
+                                await WriteImageToChannel(array, cancellationToken);
                                 LastBuffer.Clear();
                             }
                         }
@@ -112,6 +112,6 @@ namespace FrameExtractor.Decoders
 #endif
         }
 
-        private Task CreateImage(byte[] data, CancellationToken cancellationToken) => ChannelWriter.WriteAsync(new Frame(data), cancellationToken).AsTask();
+        private ValueTask WriteImageToChannel(byte[] data, CancellationToken cancellationToken) => ChannelWriter.WriteAsync(new FrameData(data), cancellationToken);
     }
 }

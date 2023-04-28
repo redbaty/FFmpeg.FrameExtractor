@@ -6,7 +6,7 @@ namespace FrameExtractor.Decoders
 {
     internal interface IFrameBufferDecoder
     {
-        ChannelWriter<Frame> ChannelWriter { get; }
+        ChannelWriter<FrameData> ChannelWriter { get; }
         
         Task WriteAsync(byte[] buffer, CancellationToken cancellationToken);
     }

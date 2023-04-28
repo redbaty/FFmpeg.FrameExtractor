@@ -8,7 +8,7 @@ namespace FrameExtractor.Extensions
 {
     internal static class FrameFormatExtensions
     {
-        public static IFrameBufferDecoder GetDecoder(this FrameFormat frameFormat, ChannelWriter<Frame> channelWriter)
+        public static IFrameBufferDecoder GetDecoder(this FrameFormat frameFormat, ChannelWriter<FrameData> channelWriter)
         {
             return frameFormat switch
             {
@@ -24,7 +24,7 @@ namespace FrameExtractor.Extensions
                    throw new FrameFormatNotRegisteredException(frameFormat);
         }
 
-        private static T GetAttributeOfType<T>(this Enum enumVal) where T : Attribute
+        private static T? GetAttributeOfType<T>(this Enum enumVal) where T : Attribute
         {
             var type = enumVal.GetType();
             var memInfo = type.GetMember(enumVal.ToString());

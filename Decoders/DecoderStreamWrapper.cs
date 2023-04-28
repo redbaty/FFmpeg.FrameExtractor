@@ -13,10 +13,10 @@ namespace FrameExtractor.Decoders
         }
 
 
-        public override bool CanRead { get; } = false;
-        public override bool CanSeek { get; } = false;
-        public override bool CanWrite { get; } = true;
-        public override long Length { get; } = 0;
+        public override bool CanRead => false;
+        public override bool CanSeek => false;
+        public override bool CanWrite => true;
+        public override long Length => 0;
         public override long Position { get; set; }
         private IFrameBufferDecoder Decoder { get; }
 

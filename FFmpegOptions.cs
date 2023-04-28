@@ -7,20 +7,9 @@ namespace FrameExtractor
     {
         internal static FFmpegOptions Default { get; } = new();
 
-        private string _ffmpegBinaryPath;
-        private string _ffprobeBinaryPath;
+        public string FFmpegBinaryPath { get; set; } = GetPathFromEnvironmentOrThrow("ffmpeg");
 
-        public string FFmpegBinaryPath
-        {
-            get => _ffmpegBinaryPath ?? GetPathFromEnvironmentOrThrow("ffmpeg");
-            set => _ffmpegBinaryPath = value;
-        }
-
-        public string FFprobeBinaryPath
-        {
-            get => _ffprobeBinaryPath ?? GetPathFromEnvironmentOrThrow("ffprobe");
-            set => _ffprobeBinaryPath = value;
-        }
+        public string FFprobeBinaryPath { get; set; } = GetPathFromEnvironmentOrThrow("ffprobe");
 
         private static string GetPathFromEnvironmentOrThrow(string fileName)
         {

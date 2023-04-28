@@ -10,7 +10,7 @@ namespace FrameExtractor
 
         public FrameFormat FrameFormat { get; set; } = FrameFormat.Jpg;
 
-        public FrameSize FrameSize { get; set; }
+        public FrameSize? FrameSize { get; set; }
 
         public TimeSpan? TimeLimit { get; set; }
         

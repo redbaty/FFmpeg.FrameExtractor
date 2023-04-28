@@ -20,12 +20,12 @@ namespace FrameExtractor
     {
         public static FrameExtractionService Default { get; } = new(null);
         
-        public FrameExtractionService(ILogger<FrameExtractionService> logger)
+        public FrameExtractionService(ILogger<FrameExtractionService>? logger)
         {
             Logger = logger;
         }
         
-        private ILogger<FrameExtractionService> Logger { get; }
+        private ILogger<FrameExtractionService>? Logger { get; }
 
         /// <summary>
         ///     Returns the 'FPS' returned from FFprobe.
@@ -34,7 +34,7 @@ namespace FrameExtractor
         /// <param name="options"></param>
         /// <returns></returns>
         /// <exception cref="FFprobeException">This happens when FFprobe returns a non 0 exit code.</exception>
-        public async Task<double> GetFps(string filePath, FFmpegOptions options = null)
+        public async Task<double> GetFps(string filePath, FFmpegOptions? options = null)
         {
             options ??= FFmpegOptions.Default;
 
@@ -52,11 +52,11 @@ namespace FrameExtractor
             if (ffprobeResult.ExitCode != 0)
             {
                 var ffprobeException = new FFprobeException(ffprobeResult.StandardError);
-                Logger?.LogError(ffprobeException, "Error while running FFprobe.");
+                Logger?.LogError(ffprobeException, "Error while running FFprobe on '{@File}'", filePath);
                 throw ffprobeException;
             }
 
-            Logger?.LogInformation("FFprobe ran successfully on '{@file}'", filePath);
+            Logger?.LogInformation("FFprobe ran successfully on '{@File}'", filePath);
 
             return GetFpsFromOutput(string.IsNullOrEmpty(ffprobeResult.StandardOutput)
                 ? ffprobeResult.StandardError
@@ -74,7 +74,7 @@ namespace FrameExtractor
         /// </param>
         /// <returns></returns>
         /// <exception cref="FFmpegException">This happens when FFmpeg returns a non 0 exit code.</exception>
-        public async IAsyncEnumerable<Frame> GetFrames(string filePath, FrameExtractionOptions options = null, Action<double> onFpsGathered = null)
+        public async IAsyncEnumerable<Frame> GetFrames(string filePath, FrameExtractionOptions? options = null, Action<double>? onFpsGathered = null)
         {
             await using var standardInput = File.OpenRead(filePath);
             await foreach (var frame in GetFrames(standardInput, options, onFpsGathered)) yield return frame;
@@ -91,35 +91,32 @@ namespace FrameExtractor
         /// </param>
         /// <returns></returns>
         /// <exception cref="FFmpegException">This happens when FFmpeg returns a non 0 exit code.</exception>
-        public async IAsyncEnumerable<Frame> GetFrames(Stream standardInput, FrameExtractionOptions options = null, Action<double> onFpsGathered = null)
+        public async IAsyncEnumerable<Frame> GetFrames(Stream standardInput, FrameExtractionOptions? options = null, Action<double>? onFpsGathered = null)
         {
             options ??= FrameExtractionOptions.Default;
 
-            var argumentsList = new List<string>();
+            var argumentsList = new List<string> { "-i - -an" };
 
-            if (options.TimeLimit.HasValue) argumentsList.Add($"-t {options.TimeLimit.Value:hh\\:mm\\:ss\\.fff}");
 
-            if (options.EnableHardwareAcceleration) argumentsList.Add("-hwaccel auto");
-
-            argumentsList.Add("-i - -an");
-
-            if (options.FrameSize != null && options.FrameSize.Valid)
+            if (options.FrameSize is { Valid: true })
                 argumentsList.Add(
                     $"-s {options.FrameSize.Width}x{options.FrameSize.Height}");
             
+            if (options.TimeLimit.HasValue) argumentsList.Add($"-t {options.TimeLimit.Value:hh\\:mm\\:ss\\.fff}");
+            
             if(options.Fps.HasValue)
-                argumentsList.Add($"-r {options.Fps.Value}");
+                argumentsList.Add($"-r 320:-1");
 
             argumentsList.Add("-f image2pipe");
-            argumentsList.Add($"pipe:{options.FrameFormat.GetPipeFormat()}");
+            argumentsList.Add("pipe:.jpg");
 
             var arguments = argumentsList.Aggregate((x, y) => $"{x} {y}");
-            var channel = Channel.CreateUnbounded<Frame>();
+            var channel = Channel.CreateUnbounded<FrameData>();
             await using var standardOutput =
                 new DecoderStreamWrapper(options.FrameFormat.GetDecoder(channel.Writer));
             var standardErrorOutput = new StringBuilder();
 
-            Logger?.LogInformation("Starting FFmpeg. {@arguments}", new
+            Logger?.LogInformation("Starting FFmpeg. {@Arguments}", new
             {
                 Arguments = arguments,
                 FFmpegPath = options.FFmpegBinaryPath
@@ -141,10 +138,8 @@ namespace FrameExtractor
             var currentFrame = 1;
             await foreach (var frame in channel.Reader.ReadAllAsync())
             {
-                frame.Position = currentFrame;
-                frame.Options = options;
-                Logger?.LogDebug("Frame {@frame} delivered.", frame.Position);
-                yield return frame;
+                Logger?.LogDebug("Frame {@Frame} delivered", currentFrame);
+                yield return new Frame(frame.Data, currentFrame, options);
                 currentFrame++;
             }
 
@@ -152,11 +147,11 @@ namespace FrameExtractor
             if (result.ExitCode != 0)
             {
                 var ffmpegException = new FFmpegException(standardErrorOutput.ToString());
-                Logger?.LogError(ffmpegException, "Error while running FFmpeg.");
+                Logger?.LogError(ffmpegException, "Error while running FFmpeg");
                 throw ffmpegException;
             }
             
-            Logger?.LogInformation("FFmpeg ran successfully. {@frameCount} frames delivered.", currentFrame);
+            Logger?.LogInformation("FFmpeg ran successfully. {@FrameCount} frames delivered, took {@ElapsedTime}", currentFrame, result.RunTime);
 
             if (onFpsGathered != null)
             {

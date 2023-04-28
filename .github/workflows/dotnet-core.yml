@@ -15,7 +15,7 @@ jobs:
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: 5.0.100
+          dotnet-version: 6.0.408
 
       - name: Publish NuGet.org
         uses: brandedoutcast/publish-nuget@v2.5.5
@@ -24,7 +24,7 @@ jobs:
           NUGET_KEY: ${{secrets.NUGETKEY}}
 
       - name: Nuget pack (github)
-        run:  dotnet pack -c Release -o out -p:PackageVersion=1.0.${{ github.run_number }}
+        run:  dotnet pack -c Release -o out -p:PackageVersion=1.1.${{ github.run_number }}
 
       - name: Push nuget (github)
         run: dotnet nuget push ./out/*.nupkg --skip-duplicate --no-symbols true --api-key ${{ github.token }} --source https://nuget.pkg.github.com/redbaty

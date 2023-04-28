@@ -6,7 +6,7 @@ namespace FrameExtractor
 {
     internal static class EnvironmentHelper
     {
-        public static string GetFullPath(string fileName)
+        public static string? GetFullPath(string fileName)
         {
             if (File.Exists(fileName))
                 return Path.GetFullPath(fileName);
