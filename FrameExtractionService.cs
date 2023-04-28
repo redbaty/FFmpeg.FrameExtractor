@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using CliWrap;
@@ -19,12 +21,12 @@ namespace FrameExtractor
     public class FrameExtractionService
     {
         public static FrameExtractionService Default { get; } = new(null);
-        
+
         public FrameExtractionService(ILogger<FrameExtractionService>? logger)
         {
             Logger = logger;
         }
-        
+
         private ILogger<FrameExtractionService>? Logger { get; }
 
         /// <summary>
@@ -67,6 +69,7 @@ namespace FrameExtractor
         ///     Gets frames asynchronously from a video file.
         /// </summary>
         /// <param name="filePath">The full file path.</param>
+        /// <param name="cancellationToken"></param>
         /// <param name="options"></param>
         /// <param name="onFpsGathered">
         ///     After the video parsing is done, this will be called with the fps value extracted from
@@ -74,16 +77,17 @@ namespace FrameExtractor
         /// </param>
         /// <returns></returns>
         /// <exception cref="FFmpegException">This happens when FFmpeg returns a non 0 exit code.</exception>
-        public async IAsyncEnumerable<Frame> GetFrames(string filePath, FrameExtractionOptions? options = null, Action<double>? onFpsGathered = null)
+        public async IAsyncEnumerable<Frame> GetFrames(string filePath, [EnumeratorCancellation] CancellationToken cancellationToken = default(CancellationToken), FrameExtractionOptions? options = null, Action<double>? onFpsGathered = null)
         {
             await using var standardInput = File.OpenRead(filePath);
-            await foreach (var frame in GetFrames(standardInput, options, onFpsGathered)) yield return frame;
+            await foreach (var frame in GetFrames(standardInput, cancellationToken, options, onFpsGathered)) yield return frame;
         }
 
         /// <summary>
         ///     Gets frames asynchronously from a video stream.
         /// </summary>
         /// <param name="standardInput">The video stream.</param>
+        /// <param name="cancellationToken"></param>
         /// <param name="options"></param>
         /// <param name="onFpsGathered">
         ///     After the video parsing is done, this will be called with the fps value extracted from
@@ -91,7 +95,7 @@ namespace FrameExtractor
         /// </param>
         /// <returns></returns>
         /// <exception cref="FFmpegException">This happens when FFmpeg returns a non 0 exit code.</exception>
-        public async IAsyncEnumerable<Frame> GetFrames(Stream standardInput, FrameExtractionOptions? options = null, Action<double>? onFpsGathered = null)
+        public async IAsyncEnumerable<Frame> GetFrames(Stream standardInput, [EnumeratorCancellation] CancellationToken cancellationToken = default(CancellationToken), FrameExtractionOptions? options = null, Action<double>? onFpsGathered = null)
         {
             options ??= FrameExtractionOptions.Default;
 
@@ -101,10 +105,10 @@ namespace FrameExtractor
             if (options.FrameSize is { Valid: true })
                 argumentsList.Add(
                     $"-s {options.FrameSize.Width}x{options.FrameSize.Height}");
-            
+
             if (options.TimeLimit.HasValue) argumentsList.Add($"-t {options.TimeLimit.Value:hh\\:mm\\:ss\\.fff}");
-            
-            if(options.Fps.HasValue)
+
+            if (options.Fps.HasValue)
                 argumentsList.Add($"-r 320:-1");
 
             argumentsList.Add("-f image2pipe");
@@ -127,13 +131,12 @@ namespace FrameExtractor
                 .WithStandardOutputPipe(PipeTarget.ToStream(standardOutput))
                 .WithStandardErrorPipe(PipeTarget.ToStringBuilder(standardErrorOutput))
                 .WithArguments(arguments)
-                .WithValidation(CommandResultValidation.None)
-                .ExecuteAsync()
+                .ExecuteAsync(cancellationToken)
                 .Task.ContinueWith(t =>
                 {
                     channel.Writer.Complete();
                     return t.Result;
-                });
+                }, cancellationToken);
 
             var currentFrame = 1;
             await foreach (var frame in channel.Reader.ReadAllAsync())
@@ -150,7 +153,7 @@ namespace FrameExtractor
                 Logger?.LogError(ffmpegException, "Error while running FFmpeg");
                 throw ffmpegException;
             }
-            
+
             Logger?.LogInformation("FFmpeg ran successfully. {@FrameCount} frames delivered, took {@ElapsedTime}", currentFrame, result.RunTime);
 
             if (onFpsGathered != null)
