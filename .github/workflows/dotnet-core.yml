@@ -21,4 +21,4 @@ jobs:
         run:  dotnet pack -c Release -o out -p:PackageVersion=1.1.${{ github.run_number }}
 
       - name: Push nuget (github)
-        run: dotnet nuget push ./out/*.nupkg --skip-duplicate --no-symbols true --api-key ${{ github.token }} --source https://nuget.pkg.github.com/redbaty
+        run: dotnet nuget push ./out/*.nupkg --api-key ${{ github.token }}
