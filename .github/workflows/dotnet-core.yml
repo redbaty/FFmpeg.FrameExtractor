@@ -17,12 +17,6 @@ jobs:
         with:
           dotnet-version: 6.0.408
 
-      - name: Publish NuGet.org
-        uses: brandedoutcast/publish-nuget@v2.5.5
-        with:
-          PROJECT_FILE_PATH: FFmpeg.FrameExtractor.csproj
-          NUGET_KEY: ${{secrets.NUGETKEY}}
-
       - name: Nuget pack (github)
         run:  dotnet pack -c Release -o out -p:PackageVersion=1.1.${{ github.run_number }}
 
