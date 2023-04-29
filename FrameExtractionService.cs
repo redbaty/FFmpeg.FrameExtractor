@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -77,10 +77,21 @@ namespace FrameExtractor
         /// </param>
         /// <returns></returns>
         /// <exception cref="FFmpegException">This happens when FFmpeg returns a non 0 exit code.</exception>
-        public async IAsyncEnumerable<Frame> GetFrames(string filePath, [EnumeratorCancellation] CancellationToken cancellationToken = default(CancellationToken), FrameExtractionOptions? options = null, Action<double>? onFpsGathered = null)
+        public async IAsyncEnumerable<Frame> GetFrames(string filePath, [EnumeratorCancellation] CancellationToken cancellationToken = default(CancellationToken), FrameExtractionOptions? options = null, Action<double>? onFpsGathered = null, Action<TimeSpan, TimeSpan>? onDurationUpdate = null)
         {
             await using var standardInput = File.OpenRead(filePath);
-            await foreach (var frame in GetFrames(standardInput, cancellationToken, options, onFpsGathered)) yield return frame;
+            await foreach (var frame in GetFrames(standardInput, cancellationToken, options, onFpsGathered, onDurationUpdate)) yield return frame;
+        }
+
+        public async Task<TimeSpan> GetFileDuration(Stream input)
+        {
+            var command = Cli.Wrap("ffprobe")
+                .WithStandardInputPipe(PipeSource.FromStream(input))
+                .WithArguments("-i - -show_entries format=duration -v quiet -sexagesimal -of csv=\"p=0\"");
+            var commandResult = await command.ExecuteBufferedAsync();
+            var duration = TimeSpan.Parse(commandResult.StandardOutput, CultureInfo.InvariantCulture);
+
+            return duration;
         }
 
         /// <summary>
@@ -93,11 +104,29 @@ namespace FrameExtractor
         ///     After the video parsing is done, this will be called with the fps value extracted from
         ///     ffmpeg 'stderr' output.
         /// </param>
+        /// <param name="onDurationUpdate">
+        ///     While the video is being parsed, this will be called with the duration value extracted from
+        ///     ffmpeg 'stderr' output.
+        /// </param>
         /// <returns></returns>
         /// <exception cref="FFmpegException">This happens when FFmpeg returns a non 0 exit code.</exception>
-        public async IAsyncEnumerable<Frame> GetFrames(Stream standardInput, [EnumeratorCancellation] CancellationToken cancellationToken = default(CancellationToken), FrameExtractionOptions? options = null, Action<double>? onFpsGathered = null)
+        public async IAsyncEnumerable<Frame> GetFrames(Stream standardInput, [EnumeratorCancellation] CancellationToken cancellationToken = default(CancellationToken), FrameExtractionOptions? options = null, 
+            Action<double>? onFpsGathered = null, Action<TimeSpan, TimeSpan>? onDurationUpdate = null
+        )
         {
             options ??= FrameExtractionOptions.Default;
+            TimeSpan? duration = null;
+
+            if (onDurationUpdate != null)
+            {
+                if(!standardInput.CanSeek)
+                    throw new ArgumentException("Stream must be seekable to get duration", nameof(standardInput));
+
+                duration = await GetFileDuration(standardInput);
+                onDurationUpdate(duration.Value, TimeSpan.Zero);
+
+                standardInput.Seek(0, SeekOrigin.Begin);
+            }
 
             var argumentsList = new List<string> { "-i - -an" };
 
@@ -126,11 +155,21 @@ namespace FrameExtractor
                 FFmpegPath = options.FFmpegBinaryPath
             });
 
-            var taskResult = Cli.Wrap(options.FFmpegBinaryPath)
+            var command = Cli.Wrap(options.FFmpegBinaryPath)
                 .WithStandardInputPipe(PipeSource.FromStream(standardInput))
                 .WithStandardOutputPipe(PipeTarget.ToStream(standardOutput))
-                .WithStandardErrorPipe(PipeTarget.ToStringBuilder(standardErrorOutput))
-                .WithArguments(arguments)
+                .WithStandardErrorPipe(PipeTarget.ToDelegate(l =>
+                {
+                    if (onDurationUpdate != null && duration != null && GetCurrentDurationFromOutput(l) is {} currentDuration)
+                    {
+                        onDurationUpdate(duration.Value, currentDuration);
+                    }
+
+                    standardErrorOutput.AppendLine(l);
+                }))
+                .WithArguments(arguments);
+            
+            var taskResult = command
                 .ExecuteAsync(cancellationToken)
                 .Task.ContinueWith(t =>
                 {
@@ -139,7 +178,7 @@ namespace FrameExtractor
                 }, cancellationToken);
 
             var currentFrame = 1;
-            await foreach (var frame in channel.Reader.ReadAllAsync())
+            await foreach (var frame in channel.Reader.ReadAllAsync(cancellationToken))
             {
                 Logger?.LogDebug("Frame {@Frame} delivered", currentFrame);
                 yield return new Frame(frame.Data, currentFrame, options);
@@ -161,6 +200,14 @@ namespace FrameExtractor
                 var fps = GetFpsFromOutput(standardErrorOutput.ToString());
                 onFpsGathered.Invoke(fps);
             }
+        }
+
+        private static TimeSpan? GetCurrentDurationFromOutput(string line)
+        {
+            var durationMatch = Regex.Match(line, "time=(?<currentDuration>\\d*:\\d*:\\d*\\.\\d*)");
+            return TimeSpan.TryParse(durationMatch.Groups["currentDuration"].Value, out var currentDuration)
+                ? currentDuration
+                : null;
         }
 
         private static double GetFpsFromOutput(string stdOut)
