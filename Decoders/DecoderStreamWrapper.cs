@@ -45,10 +45,10 @@ namespace FrameExtractor.Decoders
             return Decoder.WriteAsync(buffer[..count], cancellationToken);
         }
 
-        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer,
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer,
             CancellationToken cancellationToken = new())
         {
-            throw new NotSupportedException();
+            await Decoder.WriteAsync(buffer.ToArray(), cancellationToken);
         }
 
 
