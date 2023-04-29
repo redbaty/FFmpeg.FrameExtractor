@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -112,7 +112,7 @@ namespace FrameExtractor
                 argumentsList.Add($"-r 320:-1");
 
             argumentsList.Add("-f image2pipe");
-            argumentsList.Add("pipe:.jpg");
+            argumentsList.Add($"pipe:{options.FrameFormat.GetPipeFormat()}");
 
             var arguments = argumentsList.Aggregate((x, y) => $"{x} {y}");
             var channel = Channel.CreateUnbounded<FrameData>();
