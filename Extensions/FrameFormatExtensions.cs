@@ -6,9 +6,9 @@ using FrameExtractor.Exceptions;
 
 namespace FrameExtractor.Extensions
 {
-    internal static class FrameFormatExtensions
+    public static class FrameFormatExtensions
     {
-        public static IFrameBufferDecoder GetDecoder(this FrameFormat frameFormat, ChannelWriter<FrameData> channelWriter)
+        internal static IFrameBufferDecoder GetDecoder(this FrameFormat frameFormat, ChannelWriter<FrameData> channelWriter)
         {
             return frameFormat switch
             {
