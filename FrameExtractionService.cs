@@ -109,7 +109,7 @@ namespace FrameExtractor
             if (options.TimeLimit.HasValue) argumentsList.Add($"-t {options.TimeLimit.Value:hh\\:mm\\:ss\\.fff}");
 
             if (options.Fps.HasValue)
-                argumentsList.Add($"-r 320:-1");
+                argumentsList.Add($"-r {options.Fps}");
 
             argumentsList.Add("-f image2pipe");
             argumentsList.Add($"pipe:{options.FrameFormat.GetPipeFormat()}");
