@@ -75,6 +75,7 @@ namespace FrameExtractor
         ///     After the video parsing is done, this will be called with the fps value extracted from
         ///     ffmpeg 'stderr' output.
         /// </param>
+        /// <param name="onDurationUpdate">Called with the duration value extracted from ffmpeg 'stderr' output.</param>
         /// <returns></returns>
         /// <exception cref="FFmpegException">This happens when FFmpeg returns a non 0 exit code.</exception>
         public async IAsyncEnumerable<Frame> GetFrames(string filePath, [EnumeratorCancellation] CancellationToken cancellationToken = default(CancellationToken), FrameExtractionOptions? options = null, Action<double>? onFpsGathered = null, Action<TimeSpan, TimeSpan>? onDurationUpdate = null)
