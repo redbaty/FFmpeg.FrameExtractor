@@ -3,9 +3,9 @@
 namespace FrameExtractor.Annotations
 {
     [AttributeUsage(AttributeTargets.Field)]
-    internal class PipeFormatAttribute : Attribute
+    internal class VcodecAttribute : Attribute
     {
-        public PipeFormatAttribute(string format)
+        public VcodecAttribute(string format)
         {
             Format = format;
         }

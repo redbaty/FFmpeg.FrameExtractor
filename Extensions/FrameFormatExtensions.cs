@@ -18,9 +18,9 @@ namespace FrameExtractor.Extensions
             };
         }
 
-        public static string GetPipeFormat(this FrameFormat frameFormat)
+        public static string GetVcodec(this FrameFormat frameFormat)
         {
-            return frameFormat.GetAttributeOfType<PipeFormatAttribute>()?.Format ??
+            return frameFormat.GetAttributeOfType<VcodecAttribute>()?.Format ??
                    throw new FrameFormatNotRegisteredException(frameFormat);
         }
 

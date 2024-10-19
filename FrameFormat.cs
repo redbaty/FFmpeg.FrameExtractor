@@ -4,8 +4,8 @@ namespace FrameExtractor
 {
     public enum FrameFormat
     {
-        [PipeFormat(".jpg")] Jpg,
+        [Vcodec("jpg")] Jpg,
 
-        [PipeFormat(".png")] Png
+        [Vcodec("png")] Png
     }
 }
