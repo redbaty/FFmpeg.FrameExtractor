@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -20,6 +21,42 @@ namespace FrameExtractor
 {
     public class FrameExtractionService
     {
+        public interface IFFmegInput
+        {
+            string GetInputArgument();
+            
+            Stream? GetStream();
+        }
+        
+        private class FileFFmpegInput(string filePath) : IFFmegInput
+        {
+            public string GetInputArgument()
+            {
+                return filePath;
+            }
+
+            public Stream? GetStream()
+            {
+                return null;
+            }
+        }
+
+        public class StreamFFmpegInput(Stream stream) : IFFmegInput
+        {
+            public Stream Stream { get; } = stream;
+            
+            public string GetInputArgument()
+            {
+                return "-";
+            }
+
+            public Stream GetStream()
+            {
+                return Stream;
+            }
+        }
+        
+        
         public static FrameExtractionService Default { get; } = new(null);
 
         public FrameExtractionService(ILogger<FrameExtractionService>? logger)
@@ -80,15 +117,35 @@ namespace FrameExtractor
         /// <exception cref="FFmpegException">This happens when FFmpeg returns a non 0 exit code.</exception>
         public async IAsyncEnumerable<Frame> GetFrames(string filePath, [EnumeratorCancellation] CancellationToken cancellationToken = default(CancellationToken), FrameExtractionOptions? options = null, Action<double>? onFpsGathered = null, Action<TimeSpan, TimeSpan>? onDurationUpdate = null)
         {
-            await using var standardInput = File.OpenRead(filePath);
-            await foreach (var frame in GetFrames(standardInput, cancellationToken, options, onFpsGathered, onDurationUpdate)) yield return frame;
+            var ffmpegFileInput = new FileFFmpegInput(filePath);
+            await foreach (var frame in GetFrames(ffmpegFileInput, cancellationToken, options, onFpsGathered, onDurationUpdate)) yield return frame;
         }
 
-        public async Task<TimeSpan> GetFileDuration(Stream input)
+        private async Task<TimeSpan> GetFileDuration(IFFmegInput input)
         {
-            var command = Cli.Wrap("ffprobe")
-                .WithStandardInputPipe(PipeSource.FromStream(input))
-                .WithArguments("-i - -show_entries format=duration -v quiet -sexagesimal -of csv=\"p=0\"");
+            var agumentsList = new List<string>
+            {
+                "-i",
+                input.GetInputArgument(),
+                "-show_entries",
+                "format=duration",
+                "-v",
+                "quiet",
+                "-sexagesimal",
+                "-of",
+                "csv=\"p=0\""
+            };
+
+            var baseCommand = Cli.Wrap("ffprobe");
+            
+            if (input.GetStream() is { } standardInput)
+            {
+                baseCommand = baseCommand.WithStandardInputPipe(PipeSource.FromStream(standardInput));
+            }
+            
+            var command = baseCommand
+                .WithArguments(agumentsList);
+            
             var commandResult = await command.ExecuteBufferedAsync();
             var duration = TimeSpan.Parse(commandResult.StandardOutput, CultureInfo.InvariantCulture);
 
@@ -98,7 +155,7 @@ namespace FrameExtractor
         /// <summary>
         ///     Gets frames asynchronously from a video stream.
         /// </summary>
-        /// <param name="standardInput">The video stream.</param>
+        /// <param name="ffmegInput">The video file input</param>
         /// <param name="cancellationToken"></param>
         /// <param name="options"></param>
         /// <param name="onFpsGathered">
@@ -111,7 +168,7 @@ namespace FrameExtractor
         /// </param>
         /// <returns></returns>
         /// <exception cref="FFmpegException">This happens when FFmpeg returns a non 0 exit code.</exception>
-        public async IAsyncEnumerable<Frame> GetFrames(Stream standardInput, [EnumeratorCancellation] CancellationToken cancellationToken = default(CancellationToken), FrameExtractionOptions? options = null, 
+        public async IAsyncEnumerable<Frame> GetFrames(IFFmegInput ffmegInput, [EnumeratorCancellation] CancellationToken cancellationToken = default(CancellationToken), FrameExtractionOptions? options = null, 
             Action<double>? onFpsGathered = null, Action<TimeSpan, TimeSpan>? onDurationUpdate = null
         )
         {
@@ -120,16 +177,24 @@ namespace FrameExtractor
 
             if (onDurationUpdate != null)
             {
-                if(!standardInput.CanSeek)
-                    throw new ArgumentException("Stream must be seekable to get duration", nameof(standardInput));
-
-                duration = await GetFileDuration(standardInput);
+                duration = await GetFileDuration(ffmegInput);
                 onDurationUpdate(duration.Value, TimeSpan.Zero);
 
-                standardInput.Seek(0, SeekOrigin.Begin);
+                if (ffmegInput is StreamFFmpegInput streamFFmpegInput)
+                {
+                    if(!streamFFmpegInput.Stream.CanSeek)
+                        throw new InvalidOperationException("Stream must be seekable to get the duration");
+                    
+                    streamFFmpegInput.Stream.Seek(0, SeekOrigin.Begin);
+                }
             }
 
-            var argumentsList = new List<string> { "-i - -an" };
+            var argumentsList = new List<string>
+            {
+                "-i",
+                ffmegInput.GetInputArgument(),
+                "-an"
+            };
 
 
             if (options.FrameSize is { Valid: true })
@@ -162,11 +227,19 @@ namespace FrameExtractor
                 FFmpegPath = options.FFmpegBinaryPath
             });
 
-            var command = Cli.Wrap(options.FFmpegBinaryPath)
-                .WithStandardInputPipe(PipeSource.FromStream(standardInput))
+            var baseCommand = Cli.Wrap(options.FFmpegBinaryPath);
+
+            if (ffmegInput.GetStream() is { } standardInput)
+            {
+                baseCommand = baseCommand.WithStandardInputPipe(PipeSource.FromStream(standardInput));
+            }
+            
+            var command = baseCommand
                 .WithStandardOutputPipe(PipeTarget.ToStream(standardOutput))
                 .WithStandardErrorPipe(PipeTarget.ToDelegate(l =>
                 {
+                    Debug.WriteLine(l);
+                    
                     if (onDurationUpdate != null && duration != null && GetCurrentDurationFromOutput(l) is {} currentDuration)
                     {
                         onDurationUpdate(duration.Value, currentDuration);
