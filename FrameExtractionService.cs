@@ -19,7 +19,7 @@ using Microsoft.Extensions.Logging;
 
 namespace FrameExtractor
 {
-    public class FrameExtractionService
+    public partial class FrameExtractionService
     {
         public interface IFFmegInput
         {
@@ -284,7 +284,7 @@ namespace FrameExtractor
 
         private static TimeSpan? GetCurrentDurationFromOutput(string line)
         {
-            var durationMatch = Regex.Match(line, "time=(?<currentDuration>\\d*:\\d*:\\d*\\.\\d*)");
+            var durationMatch = CurrentTimeRegex().Match(line);
             return TimeSpan.TryParse(durationMatch.Groups["currentDuration"].Value, out var currentDuration)
                 ? currentDuration
                 : null;
@@ -292,10 +292,16 @@ namespace FrameExtractor
 
         private static double GetFpsFromOutput(string stdOut)
         {
-            var fpsMatch = Regex.Match(stdOut, "\\d*\\.?\\d* fps");
+            var fpsMatch = CurrentFpsRegex().Match(stdOut);
             var fpsDigits = new string(fpsMatch.Value.Where(i => char.IsDigit(i) || i == '.').ToArray());
             var fps = double.Parse(fpsDigits, CultureInfo.InvariantCulture);
             return fps;
         }
+
+        [GeneratedRegex(@"time=(?<currentDuration>\d*:\d*:\d*\.\d*)")]
+        private static partial Regex CurrentTimeRegex();
+        
+        [GeneratedRegex(@"\d*\.?\d* fps")]
+        private static partial Regex CurrentFpsRegex();
     }
 }
