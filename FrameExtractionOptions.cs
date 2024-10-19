@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace FrameExtractor
 {
@@ -14,6 +14,6 @@ namespace FrameExtractor
 
         public TimeSpan? TimeLimit { get; set; }
         
-        public int? Fps { get; set; }
+        public double? Fps { get; set; }
     }
 }
