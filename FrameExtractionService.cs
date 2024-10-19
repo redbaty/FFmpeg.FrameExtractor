@@ -141,6 +141,11 @@ namespace FrameExtractor
             if (options.Fps.HasValue)
                 argumentsList.Add($"-r {options.Fps}");
 
+            if (options.AdditionalInputArguments != null)
+            {
+                argumentsList.AddRange(options.AdditionalInputArguments);
+            }
+            
             argumentsList.Add($"-vcodec {options.FrameFormat.GetVcodec()}");
             argumentsList.Add("-f image2pipe");
             argumentsList.Add("-");

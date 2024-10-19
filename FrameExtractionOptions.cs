@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 
 namespace FrameExtractor
 {
@@ -15,5 +16,7 @@ namespace FrameExtractor
         public TimeSpan? TimeLimit { get; set; }
         
         public double? Fps { get; set; }
+        
+        public ICollection<string>? AdditionalInputArguments { get; set; }
     }
 }
