@@ -191,6 +191,7 @@ namespace FrameExtractor
 
             var argumentsList = new List<string>
             {
+                options.EnableHardwareAcceleration ? "-hwaccel auto" : "",
                 "-i",
                 ffmegInput.GetInputArgument(),
                 "-an"
