@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CliWrap" Version="3.7.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
+    <PackageReference Include="CliWrap" Version="3.8.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.2" />
   </ItemGroup>
 
 </Project>
