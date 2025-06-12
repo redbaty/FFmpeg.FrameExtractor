@@ -133,7 +133,7 @@ namespace FrameExtractor
                 "quiet",
                 "-sexagesimal",
                 "-of",
-                "csv=\"p=0\""
+                "csv=p=0"
             };
 
             var baseCommand = Cli.Wrap("ffprobe");
@@ -189,9 +189,15 @@ namespace FrameExtractor
                 }
             }
 
+            var initialArguments = new List<string>();
+
+            if (options.EnableHardwareAcceleration)
+            {
+                initialArguments.AddRange(["-hwaccel", "auto"]);
+            }
+            
             var argumentsList = new List<string>
             {
-                options.EnableHardwareAcceleration ? "-hwaccel auto" : "",
                 "-i",
                 ffmegInput.GetInputArgument(),
                 "-an"
@@ -199,24 +205,25 @@ namespace FrameExtractor
 
 
             if (options.FrameSize is { Valid: true })
-                argumentsList.Add(
-                    $"-s {options.FrameSize.Width}x{options.FrameSize.Height}");
+                argumentsList.AddRange(
+                    ["-s", $"{options.FrameSize.Width}x{options.FrameSize.Height}"]);
 
-            if (options.TimeLimit.HasValue) argumentsList.Add($"-t {options.TimeLimit.Value:hh\\:mm\\:ss\\.fff}");
+            if (options.TimeLimit.HasValue) argumentsList.AddRange(["-t", options.TimeLimit.Value.ToString(@"hh\:mm\:ss\.fff")]);
 
             if (options.Fps.HasValue)
-                argumentsList.Add($"-r {options.Fps}");
+                argumentsList.AddRange(["-r", options.Fps.Value.ToString(CultureInfo.InvariantCulture)]);
 
             if (options.AdditionalInputArguments != null)
             {
                 argumentsList.AddRange(options.AdditionalInputArguments);
             }
             
-            argumentsList.Add($"-vcodec {options.FrameFormat.GetVcodec()}");
-            argumentsList.Add("-f image2pipe");
+            argumentsList.AddRange(["-vcodec", options.FrameFormat.GetVcodec()]);
+            argumentsList.AddRange(["-f", "image2pipe"]);
             argumentsList.Add("-");
 
-            var arguments = argumentsList.Aggregate((x, y) => $"{x} {y}");
+            List<string> completeArguments = [..initialArguments, ..argumentsList];
+            
             var channel = Channel.CreateUnbounded<FrameData>();
             await using var standardOutput =
                 new DecoderStreamWrapper(options.FrameFormat.GetDecoder(channel.Writer));
@@ -224,7 +231,7 @@ namespace FrameExtractor
 
             Logger?.LogInformation("Starting FFmpeg. {@Arguments}", new
             {
-                Arguments = arguments,
+                Arguments = completeArguments,
                 FFmpegPath = options.FFmpegBinaryPath
             });
 
@@ -248,7 +255,7 @@ namespace FrameExtractor
 
                     standardErrorOutput.AppendLine(l);
                 }))
-                .WithArguments(arguments);
+                .WithArguments(completeArguments, true);
             
             var taskResult = command
                 .ExecuteAsync(cancellationToken)
