@@ -1,4 +1,4 @@
-name: .NET Core
+name: .NET Core CI/CD
 
 on:
   push:
@@ -7,18 +7,94 @@ on:
     branches: [master]
 
 jobs:
-  build:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.*'
+      
+      - name: Install FFmpeg (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      
+      - name: Install FFmpeg (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install ffmpeg
+      
+      - name: Install FFmpeg (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          $ffmpegUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+          $ffmpegZip = "$env:TEMP\ffmpeg.zip"
+          $ffmpegDir = "$env:TEMP\ffmpeg"
+          
+          Invoke-WebRequest -Uri $ffmpegUrl -OutFile $ffmpegZip
+          Expand-Archive -Path $ffmpegZip -DestinationPath $ffmpegDir -Force
+          
+          $extractedFolder = Get-ChildItem -Path $ffmpegDir -Directory | Select-Object -First 1
+          $ffmpegBinPath = Join-Path $extractedFolder.FullName "bin"
+          
+          echo "$ffmpegBinPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          
+          ffmpeg -version
+        shell: pwsh
+      
+      - name: Restore dependencies
+        run: dotnet restore
+      
+      - name: Build solution
+        run: dotnet build --no-restore --configuration Release
+      
+      - name: Run tests
+        run: dotnet test --no-build --configuration Release --verbosity normal --logger trx --collect:"XPlat Code Coverage"
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}
+          path: |
+            **/*.trx
+            **/coverage.cobertura.xml
+
+  build-and-publish:
+    needs: test
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
 
     steps:
       - uses: actions/checkout@v4
+      
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.*'
 
-      - name: Nuget pack (github)
-        run:  dotnet pack -c Release -o out -p:PackageVersion=1.1.${{ github.run_number }}
+      - name: Restore dependencies
+        run: dotnet restore
 
-      - name: Push nuget (github)
+      - name: Build solution
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Nuget pack
+        run: dotnet pack FFmpeg.FrameExtractor/FFmpeg.FrameExtractor.csproj -c Release -o out
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-package
+          path: ./out/*.nupkg
+
+      - name: Push nuget
         run: dotnet nuget push ./out/*.nupkg --api-key "${{ secrets.NUGETKEY }}" -s https://api.nuget.org/v3/index.json

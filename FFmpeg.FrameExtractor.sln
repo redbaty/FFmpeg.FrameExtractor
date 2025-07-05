@@ -4,6 +4,8 @@ VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FFmpeg.FrameExtractor", "FFmpeg.FrameExtractor\FFmpeg.FrameExtractor.csproj", "{7943A7BF-901B-4807-B035-C82CEC738D9E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FFmpeg.FrameExtractor.Tests", "FFmpeg.FrameExtractor.Tests\FFmpeg.FrameExtractor.Tests.csproj", "{42E73767-520D-4762-9F68-682FDBC27D05}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,6 +16,10 @@ Global
 		{7943A7BF-901B-4807-B035-C82CEC738D9E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7943A7BF-901B-4807-B035-C82CEC738D9E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7943A7BF-901B-4807-B035-C82CEC738D9E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{42E73767-520D-4762-9F68-682FDBC27D05}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{42E73767-520D-4762-9F68-682FDBC27D05}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{42E73767-520D-4762-9F68-682FDBC27D05}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{42E73767-520D-4762-9F68-682FDBC27D05}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
