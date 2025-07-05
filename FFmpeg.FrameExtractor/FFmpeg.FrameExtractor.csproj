@@ -6,11 +6,12 @@
     <RepositoryUrl>https://github.com/redbaty/FFmpeg.FrameExtractor</RepositoryUrl>
     <Authors>Marcos Cordeiro</Authors>
     <Nullable>enable</Nullable>
+    <Version>1.1.60</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CliWrap" Version="3.8.2" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.2" />
+    <PackageReference Include="CliWrap" Version="3.9.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.6" />
   </ItemGroup>
 
 </Project>
