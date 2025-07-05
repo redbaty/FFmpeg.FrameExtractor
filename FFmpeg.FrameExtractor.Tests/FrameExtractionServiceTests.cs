@@ -186,8 +186,8 @@ public class FrameExtractionServiceTests : IAsyncLifetime
         }
 
         // Assert
-        Assert.True(frameCount >= 10);
-        Assert.True(frameCount < 60); // Should be less than total frames (60)
+        Assert.True(frameCount >= 10, $"Expected at least 10 frames before cancellation, but got {frameCount}");
+        Assert.True(frameCount < 60, $"Expected frame count to be less than 60 after cancellation, but got {frameCount}");
     }
 
     [Fact]
